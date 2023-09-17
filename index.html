@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gràfic de Xarxa amb D3</title>
+    <!-- Inclou la llibreria D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        .node {
+            fill: grey;
+            cursor: pointer; /* Canvia el cursor a una mà quan passes el ratolí per sobre */
+        }
+
+        .node.highlighted {
+            fill: red; /* Canvia el color del node quan es destaca */
+        }
+
+        .label {
+            font-size: 2px;
+        }
+
+        .label.highlighted {
+	    fill: red;
+            font-weight: bold; /* Canvia l'estil de la font de l'etiqueta quan es destaca */
+        }
+    </style>
+</head>
+<body>
+    <!-- Contenidor per al gràfic -->
+    <div id="grafic"></div>
+
+    <script>
+        // Funció per descarregar i processar el JSON
+        async function carregaJSON(url) {
+            try {
+                // Feu una crida a l'API 'fetch' per descarregar el JSON
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error('No s\'ha pogut carregar el JSON.');
+                }
+
+                const json = await response.json();
+
+                // Crear un array d'objectes per a nodes
+                const nodes = [];
+
+                // Crear un array d'objectes per a enllaços
+                const links = [];
+
+                // Crear un objecte Map per emmagatzemar les relacions entre "denominaci" i "denominaci_part_cip_agregat"
+                const relacions = new Map();
+
+                // Recorre el JSON y crea nodes para "denominaci" y "denominaci_part_cip_agregat"
+                json.forEach(item => {
+                    const denominaci = item.denominaci+"_e";
+                    const denominaciPartCipAgregat = item.denominaci_part_cip_agregat+"_p";
+                    const percentatgeParticipaci = parseFloat(item.percentatge_participaci);
+console.log(percentatgeParticipaci);
+
+                    // Agregar nodes si no existen en la lista de nodes
+                    if (!nodes.find(node => node.id === denominaci)) {
+                        nodes.push({ id: denominaci, degree: 0 });
+                    }
+                    if (!nodes.find(node => node.id === denominaciPartCipAgregat)) {
+                        nodes.push({ id: denominaciPartCipAgregat, degree: 0 });
+                    }
+
+                    // Agregar la relación entre "denominaci" y "denominaci_part_cip_agregat"
+                    links.push({ source: denominaciPartCipAgregat, target: denominaci, percentatgeParticipaci });
+
+                    // Actualizar el grado de los nodos
+                    nodes.find(node => node.id === denominaci).degree += 1;
+                    nodes.find(node => node.id === denominaciPartCipAgregat).degree += 1;
+                });
+
+                // Calcular el valor máximo del grado
+                const maxDegree = d3.max(nodes, d => d.degree);
+
+                // Calcular el valor máximo del percentatge de participació
+                const maxPercentatgeParticipaci = d3.max(links, d => d.percentatgeParticipaci);
+
+                // Escala para ajustar el radio de los nodos en función del grado
+                const nodeRadiusScale = d3.scaleLinear()
+                    .domain([0, maxDegree])
+                    .range([1, 8]); // Rango de tamaños de nodo
+
+                // Escala para ajustar el ancho de las líneas en función del percentatge de participació
+                const linkWidthScale = d3.scaleLinear()
+                    .domain([0, maxPercentatgeParticipaci])
+                    .range([1, 4]); // Rango de anchos de línea
+
+                // Escala de color para les arestes en funció del percentatge de participació
+                const linkColorScale = d3.scaleLinear()
+    		    .domain([0.0000, 49.9999, 50.0000, 50.0001, 100.0000]) // Defineix els valors de domini
+    		    .range(["orange", "orange", "green", "blue", "blue"]); // Assigna colors als valors del domini
+
+                // Configuració del gràfic
+                const width = window.innerWidth * 1; // Amplada del gràfic
+                const height = window.innerHeight * 1; // Alçada del gràfic
+
+                // Crea l'element SVG
+                const svg = d3.select("#grafic")
+                    .append("svg")
+                    .attr("width", width)
+                    .attr("height", height);
+
+                // Defineix un grup principal per al zoom
+                const mainGroup = svg.append("g");
+
+                // Aplica la funció de zoom a tot el grup principal
+                const zoom = d3.zoom()
+                    .on("zoom", (event) => {
+                        mainGroup.attr("transform", event.transform);
+                    });
+
+                svg.call(zoom); // Aplica el zoom al SVG
+
+                // Dibuixa les línies (enllaços)
+                const link = mainGroup.selectAll(".link")
+                    .data(links)
+                    .enter().append("line")
+                    .attr("class", "link")
+                    .attr("stroke", d => linkColorScale(d.percentatgeParticipaci)) // Color de la línea en función del percentatge de participació
+                    .attr("stroke-width", d => linkWidthScale(d.percentatgeParticipaci)) // Ancho de la línea en función del percentatge de participació
+                    .attr("stroke-opacity", 0.6);
+// Dibuixa els cercles (nodes)
+const node = mainGroup.selectAll(".node")
+    .data(nodes)
+    .enter().append("circle")
+    .attr("class", "node")
+    .attr("r", d => nodeRadiusScale(d.degree)) // Radi dels cercles en funció del grau
+    .attr("fill", d => {
+        if (d.id.endsWith("_p")) {
+            return "red"; // Si l'etiqueta acaba amb "_p", color vermell
+        } else if (d.id.endsWith("_e")) {
+            return "green"; // Si l'etiqueta acaba amb "_e", color verd
+        } else {
+            return "grey"; // Per als altres casos, color gris
+        }
+    })
+    .on("mouseover", function (event, d) {
+        d3.select(this)
+            .classed("highlighted", true); // Afegeix la classe "highlighted" al node
+
+        // Selecciona l'etiqueta corresponent i destácala
+        labels.filter(label => label.id === d.id)
+            .classed("highlighted", true);
+    })
+    .on("mouseout", function () {
+        d3.selectAll(".node")
+            .classed("highlighted", false); // Elimina la classe "highlighted" de tots els nodes
+
+        // Elimina la classe "highlighted" de totes les etiquetes
+        labels.classed("highlighted", false);
+    });
+
+                // Afegeix etiquetes als nodes
+                const labels = mainGroup.selectAll(".label")
+                    .data(nodes)
+                    .enter().append("text")
+                    .attr("class", "label")
+                    .attr("x", d => d.x + 10)
+                    .attr("y", d => d.y - 10) // Ajusta la posición vertical de las etiquetas
+                    .text(d => d.id)
+                    .attr("font-size", 10); // Ajusta la mida de la font a 12 píxels
+
+                // Defineix la funció d'actualització a cada iteració
+                const simulation = d3.forceSimulation(nodes)
+                    .force("link", d3.forceLink(links).id(d => d.id).distance(10)) // Distancia entre nodos
+                    .force("charge", d3.forceManyBody().strength(-4))
+                    .force("center", d3.forceCenter(width / 2, height / 2));
+
+                // Actualiza la posición de los elementos en cada iteración
+                simulation.on("tick", () => {
+                    link
+                        .attr("x1", d => d.source.x)
+                        .attr("y1", d => d.source.y)
+                        .attr("x2", d => d.target.x)
+                        .attr("y2", d => d.target.y);
+
+                    node
+                        .attr("cx", d => d.x)
+                        .attr("cy", d => d.y);
+
+                    labels
+                        .attr("x", d => d.x)
+                        .attr("y", d => d.y);
+                });
+
+                // Ajustar el gráfico al tamaño de la pantalla
+                simulation.on("end", () => {
+                    svg.attr("width", width)
+                        .attr("height", height);
+                });
+            } catch (error) {
+                console.error(error.message);
+            }
+        }
+
+        // Crida la funció per descarregar el JSON quan es carrega la pàgina
+        carregaJSON('https://analisi.transparenciacatalunya.cat/resource/ex6p-6zmp.json');
+    </script>
+</body>
+</html>

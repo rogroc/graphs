@@ -52,7 +52,18 @@
 }
 
 
+        /* Classe per aplicar rotació als nodes i arestes */
+        .rotated {
+            transform-origin: center;
+            transform: rotate(90deg); /* Ajusta l'angle de rotació desitjat */
+        }
+
+        /* Estil per als nodes rotats */
+        .rotated .node text {
+            transform: rotate(-90deg); /* Inverteix la rotació del text */
+        }
     </style>
+
 </head>
 
 <body>
@@ -60,8 +71,8 @@
 
     <input type="text" id="filterInput" placeholder="Introdueix el text de filtre">
 
-    <!-- Element SVG per al gràfic -->
-    <svg viewBox="0 0 1400 800" preserveAspectRatio="xMidYMid meet"></svg>
+<svg id="grafic" preserveAspectRatio="xMidYMid meet"></svg>
+
 
 
     <script>
@@ -235,7 +246,11 @@ const node = contenidorGrafic.append("g")
         console.log(url);
         // Obrir la URL en una nova finestra del navegador quan es faci clic al node
         return window.open(url.replace(/ /g, "%20"), '_blank');
-    });
+    })
+    .call(d3.drag() // Afegir arrossegament amb D3
+        .on("start", iniciArrossegament) // Quan s'inicia l'arrossegament
+        .on("drag", arrossegant) // Mentre s'arrossega
+        .on("end", fiArrossegament)); // Quan s'acaba l'arrossegament
 
 
 
@@ -268,7 +283,12 @@ const node = contenidorGrafic.append("g")
                     text
                         .attr("x", d => d.x)
                         .attr("y", d => d.y);
-                });
+                })
+    .force("collide", d3.forceCollide().radius(function (d) {
+        return d.r + 5; // Afegir una mica d'espai entre els nodes durant l'arrossegament
+    }))
+    .alphaTarget(0.1) // Redueix l'alfa per fer que els nodes es moguin més suament
+    .alphaDecay(0.02); // Redueix gradualment l'alfa per aturar la simulació més ràpidament
 
                 // Funció per gestionar el zoom
                 function zoomat(event) {
@@ -359,6 +379,23 @@ const node = contenidorGrafic.append("g")
                     return !nodesConnectats.includes(d);
                 });
         }
+// Funció per actualitzar les dimensions de l'element SVG en funció de la finestra
+function actualitzarDimensions() {
+    const finestraAmple = window.innerWidth;
+    const finestraAltura = window.innerHeight;
+
+    // Defineix l'element SVG
+    const svg = d3.select("#grafic")
+        .attr("width", finestraAmple)
+        .attr("height", finestraAltura);
+}
+
+// Crida a la funció per primera vegada
+actualitzarDimensions();
+
+// Afegeix un event listener per actualitzar les dimensions quan es redimensiona la finestra
+window.addEventListener("resize", actualitzarDimensions);
+
     </script>
 </body>
 </html>

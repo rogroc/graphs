@@ -8,70 +8,77 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
 
     <style>
-        /* Estil per als enllaços */
+        /* Estils CSS */
         .link {
             fill: none;
             stroke: #ccc;
             stroke-width: 1.5px;
         }
 
-        /* Estil per als textos dels nodes */
         .node text {
             pointer-events: none;
         }
 
-        /* Classe per amagar el text dels nodes */
         .labels text.hidden {
             display: none;
         }
 
-        /* Estil per als enllaços filtrats */
         .filtered-link {
             stroke: red;
         }
 
-        /* Estil per als enllaços grisos */
         .gray-link {
             fill: none;
             stroke: #ccc;
             stroke-width: 1.5px;
         }
 
-        /* Estil per als enllaços vermells */
         .red-link {
             fill: none;
             stroke: red;
             stroke-width: 1.5px;
         }
 
-/* Estil per als nodes amb qualificador "Entitat del sector públic de la Generalitat" */
-.red-border-node {
-    stroke: red; /* Estil de la vora vermella */
-    stroke-width: 2px; /* Amplada de la vora vermella */
-    fill: none; /* Evitar el ple del cercle */
-}
+        .red-border-node {
+            stroke: red;
+            stroke-width: 2px;
+            fill: none;
+        }
 
-
-        /* Classe per aplicar rotació als nodes i arestes */
         .rotated {
             transform-origin: center;
-            transform: rotate(90deg); /* Ajusta l'angle de rotació desitjat */
+            transform: rotate(90deg);
         }
 
-        /* Estil per als nodes rotats */
         .rotated .node text {
-            transform: rotate(-90deg); /* Inverteix la rotació del text */
+            transform: rotate(-90deg);
         }
+
+.tooltip {
+    position: absolute;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    padding: 5px;
+    display: none;
+    pointer-events: none;
+}
+
     </style>
 
 </head>
 
 <body>
+    <!-- Botó per alternar el text -->
     <button id="toggleButton">Alternar Text</button>
 
+    <!-- Caixa d'entrada de text per filtrar -->
     <input type="text" id="filterInput" placeholder="Introdueix el text de filtre">
 
-<svg id="grafic" preserveAspectRatio="xMidYMid meet"></svg>
+    <!-- Element SVG per al gràfic -->
+    <svg id="grafic" preserveAspectRatio="xMidYMid meet"></svg>
+
+<!-- Div per a la finestra emergent -->
+<div id="tooltipEmergent" class="tooltip"></div>
 
 
 
@@ -79,6 +86,7 @@
         // URL de les dades JSON
         const url1 = "https://analisi.transparenciacatalunya.cat/resource/ex6p-6zmp.json?$limit=300000";
         const url2 = "https://analisi.transparenciacatalunya.cat/resource/gr39-ik6u.json?$limit=300000";
+
 
         // Funció per carregar les dades JSON
         async function carregarDades() {
@@ -241,12 +249,24 @@ const node = contenidorGrafic.append("g")
         // Comprovar si el camp "qualificador" és igual a "Entitat del sector públic de la Generalitat"
         return d.qualificador === "Entitat del sector públic de la Generalitat";
     })
+
     .on("click", function (d) {
         const url = d.srcElement.__data__.url;
         console.log(url);
         // Obrir la URL en una nova finestra del navegador quan es faci clic al node
         return window.open(url.replace(/ /g, "%20"), '_blank');
     })
+.on("mouseover", function (event, d) {
+    mostrarInformacioEmergent(event, d);
+})
+
+
+
+.on("mouseout", function () {
+    amagarInformacioEmergent();
+})
+
+
     .call(d3.drag() // Afegir arrossegament amb D3
         .on("start", iniciArrossegament) // Quan s'inicia l'arrossegament
         .on("drag", arrossegant) // Mentre s'arrossega
@@ -379,6 +399,31 @@ const node = contenidorGrafic.append("g")
                     return !nodesConnectats.includes(d);
                 });
         }
+
+// Funció per mostrar la finestra emergent
+function mostrarInformacioEmergent(event, d) {
+    const tooltip = document.getElementById("tooltipEmergent");
+console.log(d.name);
+    // Comprovar si la categoria és "denominacio"
+    if (d.categoria === "denominacio") {
+        tooltip.innerHTML = `${d.name}<br>Percentatge GC: ${d.percent}`;
+    } else {
+        // Si la categoria no és "denominacio", deixar el contingut en blanc
+        tooltip.innerHTML = `${d.name}`;
+    }
+
+    tooltip.style.display = "block";
+    tooltip.style.left = (event.pageX + 10) + "px";
+    tooltip.style.top = (event.pageY - 15) + "px";
+}
+
+
+// Funció per amagar la finestra emergent
+function amagarInformacioEmergent() {
+    const tooltip = document.getElementById("tooltipEmergent");
+    tooltip.style.display = "none";
+}
+
 // Funció per actualitzar les dimensions de l'element SVG en funció de la finestra
 function actualitzarDimensions() {
     const finestraAmple = window.innerWidth;

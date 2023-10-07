@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gràfic D3</title>
+    <!-- Incloure la biblioteca D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+
+    <style>
+        /* Estils CSS */
+        .link {
+            fill: none;
+            stroke: #ccc;
+            stroke-width: 1.5px;
+        }
+
+        .node text {
+            pointer-events: none;
+        }
+
+        .labels text.hidden {
+            display: none;
+        }
+
+        .filtered-link {
+            stroke: red;
+        }
+
+        .gray-link {
+            fill: none;
+            stroke: #ccc;
+            stroke-width: 1.5px;
+        }
+
+        .red-link {
+            fill: none;
+            stroke: red;
+            stroke-width: 1.5px;
+        }
+
+        .red-border-node {
+            stroke: red;
+            stroke-width: 2px;
+            fill: none;
+        }
+
+        .rotated {
+            transform-origin: center;
+            transform: rotate(90deg);
+        }
+
+        .rotated .node text {
+            transform: rotate(-90deg);
+        }
+
+.tooltip {
+    position: absolute;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    padding: 5px;
+    display: none;
+    pointer-events: none;
+}
+
+    </style>
+
+</head>
+
+<body>
+    <!-- Botó per alternar el text -->
+    <button id="toggleButton">Alternar Text</button>
+
+    <!-- Caixa d'entrada de text per filtrar -->
+    <input type="text" id="filterInput" placeholder="Introdueix el text de filtre">
+
+    <!-- Element SVG per al gràfic -->
+    <svg id="grafic" preserveAspectRatio="xMidYMid meet"></svg>
+
+<!-- Div per a la finestra emergent -->
+<div id="tooltipEmergent" class="tooltip"></div>
+
+
+
+    <script>
+        // URL de les dades JSON
+        const url1 = "https://analisi.transparenciacatalunya.cat/resource/ex6p-6zmp.json?$limit=300000";
+        const url2 = "https://analisi.transparenciacatalunya.cat/resource/gr39-ik6u.json?$limit=300000";
+
+
+        // Funció per carregar les dades JSON
+        async function carregarDades() {
+            try {
+                // Sol·licitar les dades mitjançant fetch
+                const resposta1 = await fetch(url1);
+                const resposta2 = await fetch(url2);
+
+                // Comprovar si les respostes són vàlides
+                if (!resposta1.ok || !resposta2.ok) {
+                    throw new Error("No es poden carregar les dades.");
+                }
+
+                // Convertir les respostes en objectes JSON
+                const dades1 = await resposta1.json();
+                const dades2 = await resposta2.json();
+
+                // Filtrar i combinar les dades de les dues conjunts
+                const resultat1 = dades2.map(({ denominaci, departament_d_adscripci, total_participaci_generalitat, naturalesa_jur_dica, qualificador_de_la_participaci }) => ({
+                    denominaci,
+                    departament_d_adscripci,
+                    total_participaci_generalitat,
+		    naturalesa_jur_dica,
+		    qualificador_de_la_participaci
+                }));
+
+                const resultat2 = dades1.filter(({ categoritzaci_part_cip }) =>
+                    categoritzaci_part_cip === "ADMINISTRACIÓ DE LA GENERALITAT DE CATALUNYA" ||
+                    categoritzaci_part_cip === "ENTITAT DEL SECTOR PÚBLIC DE L'ADMINISTRACIÓ DE LA GENERALITAT"
+                );
+
+                // Filtrar i combinar les dades de les dues conjunts, limitant als primers 10 resultats
+                let resultatUnificat = resultat2.map(item2 => {
+                    const trobat = resultat1.find(item1 => item1.denominaci === item2.denominaci);
+                    const denominaciModificada = item2.denominaci + "_e";
+                    const denominaciPartModificada = item2.denominaci_part_cip_agregat + "_p";
+                    return {
+                        ...item2,
+                        ...trobat,
+                        denominaci: denominaciModificada,
+                        denominaci_part_cip_agregat: denominaciPartModificada
+                    };
+                });
+
+resultatUnificat = resultatUnificat.filter(({ naturalesa_jur_dica, categoritzaci_part_cip }) =>
+                    (naturalesa_jur_dica === "Societat mercantil" ||
+                    naturalesa_jur_dica === "") && (categoritzaci_part_cip === "ENTITAT DEL SECTOR PÚBLIC DE L'ADMINISTRACIÓ DE LA GENERALITAT" ||
+		    categoritzaci_part_cip === "")
+                );
+
+               // Crea un objecte amb nodes únics
+                const nodes = {};
+
+                // Calcula el grau de cada node i el grau màxim
+                const nodeDegrees = {};
+                let grauMaxim = 0;
+
+                resultatUnificat.forEach(d => {
+
+                    // Crea nodes amb noms únics
+                    nodes[d.departament_d_adscripci] = { name: d.departament_d_adscripci, categoria: "departament", naturalesa: "", categoritzacio: "", url: "prova" };
+                    nodes[d.denominaci_part_cip_agregat] = { name: d.denominaci_part_cip_agregat, categoria: "particip", naturalesa: "", categoritzacio: d.categoritzaci_part_cip, url: "prova" };
+                    nodes[d.denominaci] = { name: d.denominaci, categoria: "denominacio", naturalesa: d.naturalesa_jur_dica, categoritzacio: "", percent: d.total_participaci_generalitat, qualificador: d.qualificador_de_la_participaci, url: "prova" };
+		    nodes["Departaments"] = { name: "Departaments" }
+                });
+
+                // Converteix els nodes en un array
+                const nodesArray = Object.values(nodes);
+
+// Crear enllaços entre els nodes
+const enllaços = [];
+resultatUnificat.forEach(d => {
+    enllaços.push({ source: d.departament_d_adscripci, target: d.denominaci, percentatge: 10 });
+    enllaços.push({ source: d.denominaci, target: d.denominaci_part_cip_agregat, percentatge: d.percentatge_participaci });
+    enllaços.push({ source: "Departaments", target: d.departament_d_adscripci });
+});
+
+// Calcular el grau de cada node
+const grauNodes = {};
+
+// Comptar el grau de cada node
+enllaços.forEach(enllac => {
+    if (!grauNodes[enllac.source]) {
+        grauNodes[enllac.source] = 0;
+    }
+    if (!grauNodes[enllac.target]) {
+        grauNodes[enllac.target] = 0;
+    }
+    grauNodes[enllac.source]++;
+    grauNodes[enllac.target]++;
+});
+
+// Actualitzar el grau als nodes
+nodesArray.forEach(node => {
+    node.grau = grauNodes[node.name];
+});
+
+
+                // Seleccionar l'element SVG i obtenir les dimensions
+                const svg = d3.select("svg"),
+                    ample = +svg.attr("width"),
+                    alcada = +svg.attr("height");
+
+                // Afegir un element 'g' per encapsular el gràfic
+                const contenidorGrafic = svg.append("g");
+
+                // Definir l'objecte de zoom
+                const zoom = d3.zoom()
+                    .scaleExtent([0.1, 10]) // Establir els límits de zoom
+                    .on("zoom", zoomat);
+
+                // Afegir el zoom a l'element SVG i establir el contenidor de zoom
+                svg.call(zoom);
+
+                // Crear una simulació de forces
+                const simulacio = d3.forceSimulation(nodesArray)
+                    .force("link", d3.forceLink(enllaços).id(d => d.name))
+                    .force("charge", d3.forceManyBody().strength(-200))
+                    .force("center", d3.forceCenter(ample / 2, alcada / 2));
+
+                // Definir una escala per al gruix dels enllaços basada en el camp "percentatge"
+                const escalaGruix = d3.scaleLinear()
+                    .domain([0, d3.max(enllaços, d => d.percentatge)]) // Utilitzar el valor màxim de "percentatge" com a domini
+                    .range([1, 5]); // Establir el rang de gruix desitjat (ajustar segons les teves preferències)
+
+                // Afegir enllaços al gràfic
+                const enllac = contenidorGrafic.append("g")
+                    .attr("class", "links")
+                    .selectAll("line")
+                    .data(enllaços)
+                    .enter().append("line")
+                    .attr("class", "link")
+                    .style("stroke-width", function (d) {
+                        return escalaGruix(d.percentatge); // Utilitzar l'escala per definir el gruix basat en "percentatge"
+                    });
+
+                // Definir una escala de colors per a les categories
+                const color = d3.scaleOrdinal()
+                    .domain(["departament", "particip", "denominacio"])
+                    .range(["#ff5733", "#33ff57", "#5733ff"]);
+
+                // Definir una nova escala de mida per als nodes de la categoria "denominacio"
+                const escalaMida = d3.scaleLinear()
+                    .domain([0, d3.max(nodesArray, d => (d.categoria === "denominacio" ? d.percent : 0))]) // Utilitzar el valor màxim de "percentatge" per als nodes de la categoria "denominacio"
+                    .range([5, 10]); // Ajustar el radi mínim i màxim segons les teves preferències
+
+// Crear cercles per als nodes i assignar colors basats en les categories i mida basada en "percentatge"
+const node = contenidorGrafic.append("g")
+    .selectAll("circle")
+    .data(nodesArray)
+    .enter().append("circle")
+    .attr("r", function (d) {
+        if (d.categoria === "departament" || d.categoria === "particip") {
+            // Utilitzar l'escala de radi basada en el grau d'entrada i sortida
+            return escalaMida(d.grau * 1.5);
+        } else if (d.categoria === "denominacio") {
+            // Utilitzar l'escala de mida basada en "percentatge" per als nodes de la categoria "denominacio"
+            return escalaMida(d.percent);
+        } else {
+            // Mida predeterminada
+            return 5;
+        }
+    })
+    .style("fill", function (d) {
+        return color(d.categoria); // Assignar colors basats en les categories
+    })
+    .classed("red-border-node", function (d) {
+        // Comprovar si el camp "qualificador" és igual a "Entitat del sector públic de la Generalitat"
+        return d.qualificador === "Entitat del sector públic de la Generalitat";
+    })
+
+    .on("click", function (d) {
+        const url = d.srcElement.__data__.url;
+        console.log(url);
+        // Obrir la URL en una nova finestra del navegador quan es faci clic al node
+        return window.open(url.replace(/ /g, "%20"), '_blank');
+    })
+.on("mouseover", function (event, d) {
+    mostrarInformacioEmergent(event, d);
+})
+
+
+
+.on("mouseout", function () {
+    amagarInformacioEmergent();
+})
+
+
+    .call(d3.drag() // Afegir arrossegament amb D3
+        .on("start", iniciArrossegament) // Quan s'inicia l'arrossegament
+        .on("drag", arrossegant) // Mentre s'arrossega
+        .on("end", fiArrossegament)); // Quan s'acaba l'arrossegament
+
+
+
+                // Afegir text als nodes
+                const text = contenidorGrafic.append("g")
+                    .attr("class", "labels")
+                    .selectAll("text")
+                    .data(nodesArray)
+                    .enter().append("text")
+                    .attr("class", "node text")
+                    .attr("dx", 6)
+                    .attr("dy", ".35em")
+                    .text(d => d.name);
+
+                // Definir el comportament de la simulació quan es produeixin canvis
+                simulacio.on("tick", () => {
+                    // Actualitzar les posicions dels enllaços
+                    enllac
+                        .attr("x1", d => d.source.x)
+                        .attr("y1", d => d.source.y)
+                        .attr("x2", d => d.target.x)
+                        .attr("y2", d => d.target.y);
+
+                    // Actualitzar les posicions dels nodes (cercles)
+                    node
+                        .attr("cx", d => d.x)
+                        .attr("cy", d => d.y);
+
+                    // Actualitzar les posicions del text dels nodes
+                    text
+                        .attr("x", d => d.x)
+                        .attr("y", d => d.y);
+                })
+    .force("collide", d3.forceCollide().radius(function (d) {
+        return d.r + 5; // Afegir una mica d'espai entre els nodes durant l'arrossegament
+    }))
+    .alphaTarget(0.1) // Redueix l'alfa per fer que els nodes es moguin més suament
+    .alphaDecay(0.02); // Redueix gradualment l'alfa per aturar la simulació més ràpidament
+
+                // Funció per gestionar el zoom
+                function zoomat(event) {
+                    // Ajustar l'escala del text en funció del nivell de zoom
+                    const escalaActual = event.transform.k;
+                    text.style("font-size", `${14 / escalaActual}px`);
+
+                    // Aplicar el zoom a la resta del gràfic
+                    contenidorGrafic.attr("transform", event.transform);
+                }
+
+                // Funcions per gestionar l'arrossegament dels nodes (opcional)
+                function iniciArrossegament(event, d) {
+                    if (!event.active) simulacio.alphaTarget(0.3).restart();
+                    d.fx = d.x;
+                    d.fy = d.y;
+                }
+
+                function arrossegant(event, d) {
+                    d.fx = event.x;
+                    d.fy = event.y;
+                }
+
+                function fiArrossegament(event, d) {
+                    if (!event.active) simulacio.alphaTarget(0);
+                    d.fx = null;
+                    d.fy = null;
+                }
+            } catch (error) {
+                console.error("Ha succeït un error:", error);
+            }
+        }
+
+        // Trucar a la funció per carregar les dades
+        carregarDades();
+
+        // Afegir un event listener al botó per alternar el text
+        document.getElementById('toggleButton').addEventListener('click', function() {
+            // Seleccionar tots els textos dels nodes
+            const textosNodes = d3.selectAll('.node.text');
+
+            // Alternar la visibilitat dels textos
+            textosNodes.classed('hidden', function(d) {
+                return !d3.select(this).classed('hidden');
+            });
+        });
+
+        // Afegir un event listener a l'element d'entrada de text per a la filtració dinàmica
+        const filterInput = document.getElementById('filterInput');
+        filterInput.addEventListener('input', function() {
+            filtrarNodes(); // Trucar a la funció de filtrat quan canviï el text d'entrada
+        });
+
+        // Funció per filtrar nodes
+        function filtrarNodes() {
+            // Obtindre el text d'entrada de filtratge
+            const textFiltre = filterInput.value.toLowerCase();
+
+            // Comprovar si la caixa de text de filtratge està buida
+            if (textFiltre === '') {
+                // Restaurar el color original dels enllaços
+                d3.selectAll('.link').classed('filtered-link', false);
+                // Mostrar tots els etiquetes de text dels nodes
+                d3.selectAll('.node.text').classed('hidden', false);
+                return; // Sortir de la funció quan la caixa estigui buida
+            }
+
+            // Seleccionar tots els enllaços i restablir els colors
+            d3.selectAll('.link').classed('filtered-link', false);
+
+            // Seleccionar tots els enllaços que contenen el text de filtratge
+            const enllaçosFiltrats = d3.selectAll('.link')
+                .filter(function (d) {
+                    const textOrigen = d.source.name.toLowerCase();
+                    const textDesti = d.target.name.toLowerCase();
+                    return textOrigen.includes(textFiltre) || textDesti.includes(textFiltre);
+                });
+
+            // Afegir la classe 'filtered-link' als enllaços filtrats per canviar el color
+            enllaçosFiltrats.classed('filtered-link', true).raise();
+
+            // Seleccionar els nodes connectats als enllaços filtrats
+            const nodesConnectats = enllaçosFiltrats.data().map(d => d.source).concat(enllaçosFiltrats.data().map(d => d.target));
+
+            // Filtrar el text dels nodes seleccionats
+            d3.selectAll('.node.text')
+                .classed('hidden', function (d) {
+                    return !nodesConnectats.includes(d);
+                });
+        }
+
+// Funció per mostrar la finestra emergent
+function mostrarInformacioEmergent(event, d) {
+    const tooltip = document.getElementById("tooltipEmergent");
+console.log(d.name);
+    // Comprovar si la categoria és "denominacio"
+    if (d.categoria === "denominacio") {
+        tooltip.innerHTML = `${d.name}<br>Percentatge GC: ${d.percent}`;
+    } else {
+        // Si la categoria no és "denominacio", deixar el contingut en blanc
+        tooltip.innerHTML = `${d.name}`;
+    }
+
+    tooltip.style.display = "block";
+    tooltip.style.left = (event.pageX + 10) + "px";
+    tooltip.style.top = (event.pageY - 15) + "px";
+}
+
+
+// Funció per amagar la finestra emergent
+function amagarInformacioEmergent() {
+    const tooltip = document.getElementById("tooltipEmergent");
+    tooltip.style.display = "none";
+}
+
+// Funció per actualitzar les dimensions de l'element SVG en funció de la finestra
+function actualitzarDimensions() {
+    const finestraAmple = window.innerWidth;
+    const finestraAltura = window.innerHeight;
+
+    // Defineix l'element SVG
+    const svg = d3.select("#grafic")
+        .attr("width", finestraAmple)
+        .attr("height", finestraAltura);
+}
+
+// Crida a la funció per primera vegada
+actualitzarDimensions();
+
+// Afegeix un event listener per actualitzar les dimensions quan es redimensiona la finestra
+window.addEventListener("resize", actualitzarDimensions);
+
+    </script>
+</body>
+</html>

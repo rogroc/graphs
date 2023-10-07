@@ -133,8 +133,7 @@
 
 resultatUnificat = resultatUnificat.filter(({ naturalesa_jur_dica, categoritzaci_part_cip }) =>
                     (naturalesa_jur_dica === "Societat mercantil" ||
-                    naturalesa_jur_dica === "") && (categoritzaci_part_cip === "ENTITAT DEL SECTOR PÚBLIC DE L'ADMINISTRACIÓ DE LA GENERALITAT" ||
-		    categoritzaci_part_cip === "")
+                    naturalesa_jur_dica === "")
                 );
 
                // Crea un objecte amb nodes únics

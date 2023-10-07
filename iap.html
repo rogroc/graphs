@@ -209,7 +209,7 @@ nodesArray.forEach(node => {
                 // Definir una escala per al gruix dels enllaços basada en el camp "percentatge"
                 const escalaGruix = d3.scaleLinear()
                     .domain([0, d3.max(enllaços, d => d.percentatge)]) // Utilitzar el valor màxim de "percentatge" com a domini
-                    .range([1, 5]); // Establir el rang de gruix desitjat (ajustar segons les teves preferències)
+                    .range([1, 6]); // Establir el rang de gruix desitjat (ajustar segons les teves preferències)
 
                 // Afegir enllaços al gràfic
                 const enllac = contenidorGrafic.append("g")

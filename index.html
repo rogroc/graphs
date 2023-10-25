@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ca">
 <head>
@@ -15,43 +16,18 @@
             stroke-width: 1.5px;
         }
 
-        .node text {
+        .node.text {
             pointer-events: none;
-        }
-
-        .labels text.hidden {
-            display: none;
         }
 
         .filtered-link {
             stroke: red;
         }
 
-        .gray-link {
-            fill: none;
-            stroke: #ccc;
-            stroke-width: 1.5px;
-        }
-
-        .red-link {
-            fill: none;
-            stroke: red;
-            stroke-width: 1.5px;
-        }
-
         .red-border-node {
             stroke: red;
             stroke-width: 2px;
             fill: none;
-        }
-
-        .rotated {
-            transform-origin: center;
-            transform: rotate(90deg);
-        }
-
-        .rotated .node text {
-            transform: rotate(-90deg);
         }
 
 .tooltip {
@@ -63,6 +39,32 @@
     pointer-events: none;
 }
 
+#llegenda {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 10px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+}
+
+.llegenda-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.llegenda-text {
+    font-size: 13px;
+}
+
+.llegenda-circle {
+    width: 20px; /* Amplada i alcada del cercle */
+    height: 20px;
+    border-radius: 50%; /* Fa que el div sigui rodó */
+    margin-right: 5px; /* Marge entre els cercles i el text */
+}
+
     </style>
 
 </head>
@@ -72,13 +74,34 @@
     <button id="toggleButton">Alternar Text</button>
 
     <!-- Caixa d'entrada de text per filtrar -->
-    <input type="text" id="filterInput" placeholder="Introdueix el text de filtre">
+    <input type="text" id="filterInput" placeholder="Introdueix text de filtre">
 
     <!-- Element SVG per al gràfic -->
     <svg id="grafic" preserveAspectRatio="xMidYMid meet"></svg>
 
 <!-- Div per a la finestra emergent -->
 <div id="tooltipEmergent" class="tooltip"></div>
+
+<div id="llegenda">
+    <!-- <h3>Llegenda</h3> -->
+    <div class="llegenda-item">
+        <div class="llegenda-circle" style="background-color: #ff5733;"></div>
+        <div class="llegenda-text">Departament</div>
+    </div>
+    <div class="llegenda-item">
+        <div class="llegenda-circle" style="background-color: #33ff57;"></div>
+        <div class="llegenda-text">Partícip</div>
+    </div>
+    <div class="llegenda-item">
+        <div class="llegenda-circle" style="background-color: #5733ff;"></div>
+        <div class="llegenda-text">Entitat</div>
+    </div>
+    <!-- Afegir la nova entrada per a les entitats majoritàries -->
+    <div class="llegenda-item">
+        <div class="llegenda-circle" style="background-color: #5733ff; border: 2px solid #ff5733;"></div>
+        <div class="llegenda-text">Entitat majoritària</div>
+    </div>
+</div>
 
 
 
@@ -204,16 +227,18 @@ nodesArray.forEach(node => {
                     .domain([0, d3.max(enllaços, d => d.percentatge)]) // Utilitzar el valor màxim de "percentatge" com a domini
                     .range([1, 5]); // Establir el rang de gruix desitjat (ajustar segons les teves preferències)
 
-                // Afegir enllaços al gràfic
-                const enllac = contenidorGrafic.append("g")
-                    .attr("class", "links")
-                    .selectAll("line")
-                    .data(enllaços)
-                    .enter().append("line")
-                    .attr("class", "link")
-                    .style("stroke-width", function (d) {
-                        return escalaGruix(d.percentatge); // Utilitzar l'escala per definir el gruix basat en "percentatge"
-                    });
+// Afegir enllaços al gràfic
+const enllac = contenidorGrafic.append("g")
+    .attr("class", "links")
+    .selectAll("line")
+    .data(enllaços)
+    .enter().append("line")
+    .attr("class", "link")
+    .style("stroke-width", function (d) {
+        return escalaGruix(d.percentatge); // Utilitzar l'escala per definir el gruix basat en "percentatge"
+    })
+    .sort((a, b) => b.percentatge - a.percentatge); // Ordena les arestes pel percentatge en ordre descendent
+
 
                 // Definir una escala de colors per a les categories
                 const color = d3.scaleOrdinal()
@@ -274,16 +299,18 @@ const node = contenidorGrafic.append("g")
 
 
 
-                // Afegir text als nodes
-                const text = contenidorGrafic.append("g")
-                    .attr("class", "labels")
-                    .selectAll("text")
-                    .data(nodesArray)
-                    .enter().append("text")
-                    .attr("class", "node text")
-                    .attr("dx", 6)
-                    .attr("dy", ".35em")
-                    .text(d => d.name);
+               // Afegir text als nodes i amagar-los d'entrada
+const text = contenidorGrafic.append("g")
+    .attr("class", "labels")
+    .selectAll("text")
+    .data(nodesArray)
+    .enter().append("text")
+    .attr("class", "node text")
+    .attr("dx", 6)
+    .attr("dy", ".35em")
+    .text(d => d.name)
+    .style("display", "none"); // Amaga el text afegint l'estil "display: none"
+
 
                 // Definir el comportament de la simulació quan es produeixin canvis
                 simulacio.on("tick", () => {
@@ -337,6 +364,14 @@ const node = contenidorGrafic.append("g")
                     d.fx = null;
                     d.fy = null;
                 }
+
+// Defineix la vista inicial centrada amb un zoom més petit
+const vistaInicial = d3.zoomIdentity.translate(ample/3, alcada/3).scale(0.25);
+
+// Aplica la vista inicial a l'element SVG
+svg.call(zoom.transform, vistaInicial);
+
+
             } catch (error) {
                 console.error("Ha succeït un error:", error);
             }
@@ -345,65 +380,66 @@ const node = contenidorGrafic.append("g")
         // Trucar a la funció per carregar les dades
         carregarDades();
 
-        // Afegir un event listener al botó per alternar el text
-        document.getElementById('toggleButton').addEventListener('click', function() {
-            // Seleccionar tots els textos dels nodes
-            const textosNodes = d3.selectAll('.node.text');
+// Afegir un event listener al botó per alternar el text
+document.getElementById('toggleButton').addEventListener('click', function() {
+    // Seleccionar tots els textos dels nodes
+    const textosNodes = d3.selectAll('.node.text');
 
-            // Alternar la visibilitat dels textos
-            textosNodes.classed('hidden', function(d) {
-                return !d3.select(this).classed('hidden');
-            });
+    // Alternar la visibilitat dels textos
+    textosNodes.style('display', function() {
+        return this.style.display === 'none' ? 'block' : 'none';
+    });
+});
+
+// Afegir un event listener a l'element d'entrada de text per a la filtració dinàmica
+const filterInput = document.getElementById('filterInput');
+filterInput.addEventListener('input', function() {
+    filtrarNodes(); // Trucar a la funció de filtrat quan canviï el text d'entrada
+});
+
+// Funció per filtrar nodes
+function filtrarNodes() {
+    // Obtén el text d'entrada de filtratge
+    const textFiltre = filterInput.value.toLowerCase();
+
+    // Comprova si la caixa de text de filtratge està buida
+    if (textFiltre === '') {
+        // Restaura el color original dels enllaços
+        d3.selectAll('.link').classed('filtered-link', false);
+        // Mostra tots els textos dels nodes
+        d3.selectAll('.node.text').style('display', 'block');
+        return; // Sort de la funció quan la caixa estigui buida
+    }
+
+    // Seleciona tots els enllaços i restaura els colors
+    d3.selectAll('.link').classed('filtered-link', false);
+
+    // Seleciona tots els enllaços que contenen el text de filtratge
+    const enllaçosFiltrats = d3.selectAll('.link')
+        .filter(function (d) {
+            const textOrigen = d.source.name.toLowerCase();
+            const textDesti = d.target.name.toLowerCase();
+            return textOrigen.includes(textFiltre) || textDesti.includes(textFiltre);
         });
 
-        // Afegir un event listener a l'element d'entrada de text per a la filtració dinàmica
-        const filterInput = document.getElementById('filterInput');
-        filterInput.addEventListener('input', function() {
-            filtrarNodes(); // Trucar a la funció de filtrat quan canviï el text d'entrada
-        });
-
-        // Funció per filtrar nodes
-        function filtrarNodes() {
-            // Obtindre el text d'entrada de filtratge
-            const textFiltre = filterInput.value.toLowerCase();
-
-            // Comprovar si la caixa de text de filtratge està buida
-            if (textFiltre === '') {
-                // Restaurar el color original dels enllaços
-                d3.selectAll('.link').classed('filtered-link', false);
-                // Mostrar tots els etiquetes de text dels nodes
-                d3.selectAll('.node.text').classed('hidden', false);
-                return; // Sortir de la funció quan la caixa estigui buida
-            }
-
-            // Seleccionar tots els enllaços i restablir els colors
-            d3.selectAll('.link').classed('filtered-link', false);
-
-            // Seleccionar tots els enllaços que contenen el text de filtratge
-            const enllaçosFiltrats = d3.selectAll('.link')
-                .filter(function (d) {
-                    const textOrigen = d.source.name.toLowerCase();
-                    const textDesti = d.target.name.toLowerCase();
-                    return textOrigen.includes(textFiltre) || textDesti.includes(textFiltre);
-                });
-
-            // Afegir la classe 'filtered-link' als enllaços filtrats per canviar el color
+   // Afegir la classe 'filtered-link' als enllaços filtrats per canviar el color
             enllaçosFiltrats.classed('filtered-link', true).raise();
 
-            // Seleccionar els nodes connectats als enllaços filtrats
-            const nodesConnectats = enllaçosFiltrats.data().map(d => d.source).concat(enllaçosFiltrats.data().map(d => d.target));
 
-            // Filtrar el text dels nodes seleccionats
-            d3.selectAll('.node.text')
-                .classed('hidden', function (d) {
-                    return !nodesConnectats.includes(d);
-                });
-        }
+    // Seleciona els nodes connectats als enllaços filtrats
+    const nodesConnectats = enllaçosFiltrats.data().map(d => d.source).concat(enllaçosFiltrats.data().map(d => d.target));
+
+    // Filtra el text dels nodes seleccionats
+    d3.selectAll('.node.text').style('display', function (d) {
+        return nodesConnectats.includes(d) ? 'block' : 'none';
+    });
+}
+
 
 // Funció per mostrar la finestra emergent
 function mostrarInformacioEmergent(event, d) {
     const tooltip = document.getElementById("tooltipEmergent");
-console.log(d.name);
+
     // Comprovar si la categoria és "denominacio"
     if (d.categoria === "denominacio") {
         tooltip.innerHTML = `${d.name}<br>Percentatge GC: ${d.percent}`;
@@ -440,6 +476,11 @@ actualitzarDimensions();
 
 // Afegeix un event listener per actualitzar les dimensions quan es redimensiona la finestra
 window.addEventListener("resize", actualitzarDimensions);
+
+// Change the initial style to "block" for the legend
+const llegenda = document.getElementById("llegenda");
+llegenda.style.display = "block";
+
 
     </script>
 </body>

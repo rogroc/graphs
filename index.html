@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="ca">
 <head>
@@ -99,7 +100,7 @@
     <!-- Afegir la nova entrada per a les entitats majoritàries -->
     <div class="llegenda-item">
         <div class="llegenda-circle" style="background-color: #5733ff; border: 2px solid #ff5733;"></div>
-        <div class="llegenda-text">E. sector públic GC</div>
+        <div class="llegenda-text">Entitat majoritària</div>
     </div>
 </div>
 
@@ -175,8 +176,8 @@
 // Crear enllaços entre els nodes
 const enllaços = [];
 resultatUnificat.forEach(d => {
-    enllaços.push({ source: d.departament_d_adscripci, target: d.denominaci, percentatge: 10 });
-    enllaços.push({ source: d.denominaci, target: d.denominaci_part_cip_agregat, percentatge: d.percentatge_participaci });
+    enllaços.push({ source: d.departament_d_adscripci, target: d.denominaci, percentatge: 10, classe: "dep" });
+    enllaços.push({ source: d.denominaci, target: d.denominaci_part_cip_agregat, percentatge: d.percentatge_participaci, classe: "part" });
 });
 
 // Calcular el grau de cada node
@@ -235,9 +236,16 @@ const enllac = contenidorGrafic.append("g")
     .enter().append("line")
     .attr("class", "link")
     .style("stroke-width", function (d) {
-        return escalaGruix(d.percentatge); // Utilitzar l'escala per definir el gruix basat en "percentatge"
+        return escalaGruix(d.percentatge);
     })
-    .sort((a, b) => b.percentatge - a.percentatge); // Ordena les arestes pel percentatge en ordre descendent
+    .sort((a, b) => b.percentatge - a.percentatge)
+    .on("mouseover", function(event, d) {
+        // Mostra el valor del camp "percentatge" quan passes per sobre
+        mostrarInformacioEmergent(event, d);
+    })
+    .on("mouseout", function() {
+        amagarInformacioEmergent();
+    });
 
 
                 // Definir una escala de colors per a les categories
@@ -436,15 +444,21 @@ function filtrarNodes() {
 }
 
 
-// Funció per mostrar la finestra emergent
+// Función para mostrar la ventana emergente
 function mostrarInformacioEmergent(event, d) {
     const tooltip = document.getElementById("tooltipEmergent");
 
-    // Comprovar si la categoria és "denominacio"
+    // Comprobar si la categoría es "denominacio"
     if (d.categoria === "denominacio") {
         tooltip.innerHTML = `${d.name}<br>Percentatge GC: ${d.percent}`;
+    } else if (d.percentatge >= 0 && d.classe === "part" ) {
+        // Mostrar información de la arista solo si existeix un percentatge
+        tooltip.innerHTML = `Participació: ${d.percentatge} %`;
+    } else if (d.percentatge >= 0 && d.classe === "dep" ) {
+        // Mostrar información de la arista solo si existeix un percentatge
+        tooltip.innerHTML = none;
     } else {
-        // Si la categoria no és "denominacio", deixar el contingut en blanc
+        // Si la categoría no es "denominacio" ni se cumple la condición de la arista, deja el contenido en blanco
         tooltip.innerHTML = `${d.name}`;
     }
 
@@ -452,6 +466,7 @@ function mostrarInformacioEmergent(event, d) {
     tooltip.style.left = (event.pageX + 10) + "px";
     tooltip.style.top = (event.pageY - 15) + "px";
 }
+
 
 
 // Funció per amagar la finestra emergent
@@ -480,7 +495,6 @@ window.addEventListener("resize", actualitzarDimensions);
 // Change the initial style to "block" for the legend
 const llegenda = document.getElementById("llegenda");
 llegenda.style.display = "block";
-
 
     </script>
 </body>

@@ -223,6 +223,14 @@ nodesArray.forEach(node => {
                     .force("charge", d3.forceManyBody().strength(-200))
                     .force("center", d3.forceCenter(ample / 2, alcada / 2));
 
+// Defineix una funció per aturar la simulació
+function aturarSimulacio() {
+    simulacio.alpha(0).stop();
+}
+
+// Programa l'aturada de la simulació després de 20 segons (20000 milisegons)
+setTimeout(aturarSimulacio, 20000);
+
                 // Definir una escala per al gruix dels enllaços basada en el camp "percentatge"
                 const escalaGruix = d3.scaleLinear()
                     .domain([0, d3.max(enllaços, d => d.percentatge)]) // Utilitzar el valor màxim de "percentatge" com a domini

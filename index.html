@@ -29,44 +29,44 @@
             fill: none;
         }
 
-.tooltip {
-    position: absolute;
-    background-color: #fff;
-    border: 1px solid #ddd;
-    padding: 5px;
-    display: none;
-    pointer-events: none;
-}
+        .tooltip {
+            position: absolute;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 5px;
+            display: none;
+            pointer-events: none;
+        }
 
-#llegenda {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    padding: 10px;
-    background-color: #fff;
-    border: 1px solid #ddd;
-}
+        #llegenda {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+        }
 
-.llegenda-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 5px;
-}
+        .llegenda-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
 
-.llegenda-text {
-    font-size: 13px;
-}
+        .llegenda-text {
+            font-size: 13px;
+        }
 
-.llegenda-circle {
-    width: 20px; /* Amplada i alcada del cercle */
-    height: 20px;
-    border-radius: 50%; /* Fa que el div sigui rodó */
-    margin-right: 5px; /* Marge entre els cercles i el text */
-}
-
+        .llegenda-circle {
+            width: 20px; /* Amplada i alcada del cercle */
+            height: 20px;
+            border-radius: 50%; /* Fa que el div sigui rodó */
+            margin-right: 5px; /* Marge entre els cercles i el text */
+        }
     </style>
 
 </head>
+
 
 <body>
     <!-- Botó per alternar el text -->
@@ -78,30 +78,29 @@
     <!-- Element SVG per al gràfic -->
     <svg id="grafic" preserveAspectRatio="xMidYMid meet"></svg>
 
-<!-- Div per a la finestra emergent -->
-<div id="tooltipEmergent" class="tooltip"></div>
+    <!-- Div per a la finestra emergent -->
+    <div id="tooltipEmergent" class="tooltip"></div>
 
-<div id="llegenda">
-    <!-- <h3>Llegenda</h3> -->
-    <div class="llegenda-item">
-        <div class="llegenda-circle" style="background-color: #ff5733;"></div>
-        <div class="llegenda-text">Departament</div>
+    <div id="llegenda">
+        <!-- <h3>Llegenda</h3> -->
+        <div class="llegenda-item">
+            <div class="llegenda-circle" style="background-color: #ff5733;"></div>
+            <div class="llegenda-text">Departament</div>
+        </div>
+        <div class "llegenda-item">
+            <div class="llegenda-circle" style="background-color: #33ff57;"></div>
+            <div class="llegenda-text">Partícip</div>
+        </div>
+        <div class="llegenda-item">
+            <div class="llegenda-circle" style="background-color: #5733ff;"></div>
+            <div class="llegenda-text">Entitat</div>
+        </div>
+        <!-- Afegir la nova entrada per a les entitats majoritàries -->
+        <div class="llegenda-item">
+            <div class="llegenda-circle" style="background-color: #5733ff; border: 2px solid #ff5733;"></div>
+            <div class="llegenda-text">Entitat majoritària</div>
+        </div>
     </div>
-    <div class="llegenda-item">
-        <div class="llegenda-circle" style="background-color: #33ff57;"></div>
-        <div class="llegenda-text">Partícip</div>
-    </div>
-    <div class="llegenda-item">
-        <div class="llegenda-circle" style="background-color: #5733ff;"></div>
-        <div class="llegenda-text">Entitat</div>
-    </div>
-    <!-- Afegir la nova entrada per a les entitats majoritàries -->
-    <div class="llegenda-item">
-        <div class="llegenda-circle" style="background-color: #5733ff; border: 2px solid #ff5733;"></div>
-        <div class="llegenda-text">Entitat majoritària</div>
-    </div>
-</div>
-
 
 
     <script>
@@ -126,10 +125,10 @@
                 const dades1 = await resposta1.json();
                 const dades2 = await resposta2.json();
 
-                // Filtrar i combinar les dades dels des conjunts
+                // Filtrar i combinar les dades de les dues conjunts
                 const resultat1 = dades2.map(({ denominaci, departament_d_adscripci, total_participaci_generalitat, naturalesa_jur_dica, qualificador_de_la_participaci }) => ({
                     denominaci,
-                    departament_d_adscripci: departament_d_adscripci + "_d",
+                    departament_d_adscripci: departament_d_adscripci+"_d",
                     total_participaci_generalitat,
 		    naturalesa_jur_dica,
 		    qualificador_de_la_participaci
@@ -140,7 +139,7 @@
                     categoritzaci_part_cip === "ENTITAT DEL SECTOR PÚBLIC DE L'ADMINISTRACIÓ DE LA GENERALITAT"
                 );
 
-                // Filtrar i combinar les dades de les dues conjunts
+                // Filtrar i combinar les dades de les dues conjunts, limitant als primers 10 resultats
                 const resultatUnificat = resultat2.map(item2 => {
                     const trobat = resultat1.find(item1 => item1.denominaci === item2.denominaci);
                     const denominaciModificada = item2.denominaci + "_e";
@@ -450,32 +449,32 @@ function filtrarNodes() {
 }
 
 
-// Función para mostrar la ventana emergente
+// Funció per mostrar la finestra emergent
 function mostrarInformacioEmergent(event, d) {
     const tooltip = document.getElementById("tooltipEmergent");
 
-    // Comprobar si la categoría es "denominacio"
+    // Comprovar si la categoria és "denominacio"
     if (d.categoria === "denominacio") {
         tooltip.innerHTML = `<b>${d.registre}</b> ${d.name.slice(0, -2)}<br>Percentatge GC: ${d.percent} %`;
-    } else if (d.categoria === "particip" ) {
-        // Mostrar info de partícip
+    } else if (d.categoria === "particip") {
+        // Mostrar informació de l'aresta només si existeix un percentatge
         tooltip.innerHTML = `${d.name.slice(0, -2)}`;
-    } else if (d.percentatge >= 0 && d.classe === "part" ) {
-        // Mostrar información de la arista solo si existeix un percentatge
+    } else if (d.classe === "part") {
+        // Mostrar informació de l'aresta de participació
         tooltip.innerHTML = `Participació: ${d.percentatge} %`;
-    } else if (d.percentatge >= 0 && d.classe === "dep" ) {
-        // Mostrar información de la arista solo si existeix un percentatge
-        tooltip.style.display = 'none';
-    } else {
-        // Si la categoría no es "denominacio" ni se cumple la condición de la arista, deja el contenido en blanco
+    } else if (d.categoria === "departament") {
+        // Mostrar informació dels nodes de departament
         tooltip.innerHTML = `${d.name.slice(0, -2)}`;
+    } else if (d.classe === "dep") {
+        // Si la classe és "dep", amagar la finestra emergent i sortir de la funció
+        tooltip.style.display = 'none';
+        return;
     }
 
     tooltip.style.display = "block";
     tooltip.style.left = (event.pageX + 10) + "px";
     tooltip.style.top = (event.pageY - 15) + "px";
 }
-
 
 
 // Funció per amagar la finestra emergent

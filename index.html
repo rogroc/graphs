@@ -126,10 +126,10 @@
                 const dades1 = await resposta1.json();
                 const dades2 = await resposta2.json();
 
-                // Filtrar i combinar les dades de les dues conjunts
+                // Filtrar i combinar les dades dels des conjunts
                 const resultat1 = dades2.map(({ denominaci, departament_d_adscripci, total_participaci_generalitat, naturalesa_jur_dica, qualificador_de_la_participaci }) => ({
                     denominaci,
-                    departament_d_adscripci,
+                    departament_d_adscripci: departament_d_adscripci + "_d",
                     total_participaci_generalitat,
 		    naturalesa_jur_dica,
 		    qualificador_de_la_participaci
@@ -140,7 +140,7 @@
                     categoritzaci_part_cip === "ENTITAT DEL SECTOR PÚBLIC DE L'ADMINISTRACIÓ DE LA GENERALITAT"
                 );
 
-                // Filtrar i combinar les dades de les dues conjunts, limitant als primers 10 resultats
+                // Filtrar i combinar les dades de les dues conjunts
                 const resultatUnificat = resultat2.map(item2 => {
                     const trobat = resultat1.find(item1 => item1.denominaci === item2.denominaci);
                     const denominaciModificada = item2.denominaci + "_e";
@@ -458,17 +458,17 @@ function mostrarInformacioEmergent(event, d) {
     if (d.categoria === "denominacio") {
         tooltip.innerHTML = `<b>${d.registre}</b> ${d.name.slice(0, -2)}<br>Percentatge GC: ${d.percent} %`;
     } else if (d.categoria === "particip" ) {
-        // Mostrar información de la arista solo si existeix un percentatge
+        // Mostrar info de partícip
         tooltip.innerHTML = `${d.name.slice(0, -2)}`;
     } else if (d.percentatge >= 0 && d.classe === "part" ) {
         // Mostrar información de la arista solo si existeix un percentatge
         tooltip.innerHTML = `Participació: ${d.percentatge} %`;
     } else if (d.percentatge >= 0 && d.classe === "dep" ) {
         // Mostrar información de la arista solo si existeix un percentatge
-        tooltip.innerHTML = none;
+        tooltip.style.display = 'none';
     } else {
         // Si la categoría no es "denominacio" ni se cumple la condición de la arista, deja el contenido en blanco
-        tooltip.innerHTML = `${d.name}`;
+        tooltip.innerHTML = `${d.name.slice(0, -2)}`;
     }
 
     tooltip.style.display = "block";

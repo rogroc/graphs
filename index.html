@@ -420,7 +420,7 @@ function filtrarNodes() {
         // Restaura el color original dels enllaços
         d3.selectAll('.link').classed('filtered-link', false);
         // Mostra tots els textos dels nodes
-        d3.selectAll('.node.text').style('display', 'block');
+        d3.selectAll('.node.text').style('display', 'none');
         return; // Sort de la funció quan la caixa estigui buida
     }
 

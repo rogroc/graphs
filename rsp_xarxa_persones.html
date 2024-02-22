@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gràfic de Relacions</title>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+</head>
+<body>
+    <!-- Afegir una caixa de text i un botó -->
+    <label for="grau">Grau dels nodes de nom+cognom:</label>
+    <input type="number" id="grau" value="1">
+    <button onclick="filtrarNodes()">Filtrar i Resituar Nodes</button>
+
+    <script>
+        // Variables globals per emmagatzemar les dades del gràfic
+        let originalNodes = [];
+        let originalEdges = [];
+        let originalNodeLinksCount = {};
+
+        let nodes = [];
+        let edges = [];
+        let nodeLinksCount = {};
+
+        let svg; // Afegit: variable global per accedir a l'element svg
+
+        // Funció per obtenir les dades i crear el gràfic
+        function obtenirDadesIGraficar() {
+            fetch("https://analisi.transparenciacatalunya.cat/resource/auai-ppkn.json")
+                .then(response => response.json())
+                .then(data => {
+                    originalNodes = [];
+                    originalEdges = [];
+                    originalNodeLinksCount = {};
+
+                    // Itera sobre les entrades i afegeix nodes i arestes
+                    data.forEach(entry => {
+                        const denominacio = entry.denominaci || "";
+                        const nom = entry.nom || entry.nom_representant_p_jur_dica || "";
+                        const cognoms = entry.cognoms || entry.cognoms_representant_p_jur_dica || "Vacant";
+                        const representant = entry.denominaci_social !== undefined ? "(" + entry.denominaci_social + ")" : "";
+
+                        const carrec = entry.c_rrec_en_l_rgan_de_govern_superior || "No descrit";
+                        const nodeId = nom + " " + cognoms;
+                        const nodeDenominacio = { id: denominacio, type: "denominacio" };
+                        const nodeNomCognoms = { id: nodeId, type: "nomCognoms", carrec: carrec, representant: representant };
+
+                        // Afegeix nodes només si tenen un id vàlid
+                        if (nodeId.trim() !== "") {
+                            // Compta els enllaços per cada node de "nom+cognoms"
+                            originalNodeLinksCount[nodeId] = (originalNodeLinksCount[nodeId] || 0) + 1;
+
+                            // Afegeix nodes i arestes sempre
+                            if (!originalNodes.find(node => node.id === denominacio)) {
+                                originalNodes.push(nodeDenominacio);
+                            }
+
+                            if (!originalNodes.find(node => node.id === nodeId)) {
+                                originalNodes.push(nodeNomCognoms);
+                            }
+
+                            originalEdges.push({ source: denominacio, target: nodeId, carrec: carrec, representant: representant });
+                        }
+                    });
+
+                    // Inicialitza els nodes i arestes amb els originals
+                    nodes = originalNodes.slice();
+                    edges = originalEdges.slice();
+                    nodeLinksCount = { ...originalNodeLinksCount };
+
+                    // Crida la funció per crear i visualitzar el gràfic
+                    crearGrafic();
+                })
+                .catch(error => console.error("Error en obtenir les dades:", error));
+        }
+
+        // Funció per crear i visualitzar el gràfic
+        function crearGrafic() {
+            // Elimina l'element SVG existent (si hi ha algun)
+            d3.select("svg").remove();
+
+            // Crea el gràfic utilitzant D3.js
+            svg = d3.select("body").append("svg")
+                .attr("width", "100%")  // Amplada del 100% de l'element pare
+                .attr("height", "100%") // Altura del 100% de l'element pare
+                .attr("viewBox", `0 0 ${window.innerWidth} ${window.innerHeight}`);
+
+            const g = svg.append("g");
+
+            const zoom = d3.zoom()
+                .scaleExtent([0.1, 10])
+                .on("zoom", () => {
+                    g.attr("transform", d3.event.transform);
+                });
+
+            svg.call(zoom);
+
+            const simulation = d3.forceSimulation(nodes)
+                .force("link", d3.forceLink(edges).id(d => d.id))
+                .force("charge", d3.forceManyBody())
+                .force("center", d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2));
+
+            // Utilitza una escala de colors D3 en lloc d'un switch
+            const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+
+            const link = g.selectAll("line")
+                .data(edges)
+                .enter().append("line")
+                .attr("stroke", d => colorScale(d.carrec))  // Utilitza la funció getColorBasedOnCarrec
+                .attr("stroke-width", 1)
+                .on("mouseover", mostrarDenominacio) // Afegir esdeveniment mouseover
+                .on("mouseout", amagarDenominacio);  // Afegir esdeveniment mouseout
+
+            const drag = d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended);
+
+            const node = g.selectAll("g")
+                .data(nodes)
+                .enter().append("g")
+                .call(drag); // Afegeix el comportament de drag als nodes
+
+            node.append("circle")
+                .attr("r", d => d.type === "denominacio" ? 5 : (d.type === "nomCognoms" ? Math.sqrt(nodeLinksCount[d.id]) * 5 : 10))
+                .attr("fill", d => {
+                    if (d.type === "denominacio") {
+                        return "blue";
+                    } else if (nodeLinksCount[d.id] === 1 && d.type === "nomCognoms") {
+                        return "red";
+                    } else {
+                        return "orange";
+                    }
+                })
+                .attr("stroke", "black") // Color del contorn (negre en aquest cas)
+                .attr("stroke-width", 1); // Amplada del contorn (pots ajustar a la teva preferència)
+
+            node.append("text")
+                .attr("dx", 12)
+                .attr("dy", ".35em")
+                .attr("font-size", "6px")  // Mida de la lletra reduïda
+                .text(d => d.id)
+                .raise(); // Això posarà el text en primer pla
+
+            simulation.on("tick", () => {
+                link
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y);
+
+                node
+                    .attr("transform", d => `translate(${d.x},${d.y})`);
+            });
+
+            // Funcions de drag
+            function dragstarted(d) {
+                if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(d) {
+                d.fx = d3.event.x;
+                d.fy = d3.event.y;
+            }
+
+            function dragended(d) {
+                if (!d3.event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+        }
+
+        // Funció per filtrar els nodes segons el número de grau
+        function filtrarNodes() {
+            const grauSeleccionat = parseInt(document.getElementById("grau").value, 10);
+
+            // Restaura els nodes i enllaços als originals abans de fer el filtratge
+            nodes = originalNodes.slice();
+            edges = originalEdges.slice();
+            nodeLinksCount = { ...originalNodeLinksCount };
+
+            // Filtra els nodes amb el número de grau seleccionat o superior
+            const nodesFiltrats = nodes.filter(node => {
+                if (node.type === "nomCognoms") {
+                    // Verifica que el node tingui un grau igual o superior al seleccionat
+                    return nodeLinksCount[node.id] >= grauSeleccionat;
+                } else {
+                    // Nodes de tipus "denominacio" es mantenen sempre al graf
+                    return true;
+                }
+            });
+
+            // Filtra els enllaços que connecten els nodes que es mostren
+            const edgesFiltrats = edges.filter(edge =>
+                nodesFiltrats.some(node => node.id === edge.source.id) &&
+                nodesFiltrats.some(node => node.id === edge.target.id)
+            );
+
+            // Actualitza les dades del gràfic amb els nodes i enllaços filtrats
+            nodes = nodesFiltrats;
+            edges = edgesFiltrats;
+
+            // Elimina nodes sense arestes
+            eliminarNodesSenseArestes();
+        }
+
+        // Funció per eliminar nodes sense arestes
+        function eliminarNodesSenseArestes() {
+            // Filtra els nodes que tenen almenys una aresta
+            const nodesAmbArestes = nodes.filter(node =>
+                edges.some(edge => edge.source.id === node.id || edge.target.id === node.id)
+            );
+
+            // Filtra les arestes que connecten els nodes que tenen almenys una aresta
+            const edgesAmbArestes = edges.filter(edge =>
+                nodesAmbArestes.some(node => node.id === edge.source.id) ||
+                nodesAmbArestes.some(node => node.id === edge.target.id)
+            );
+
+            // Actualitza les dades del gràfic amb els nodes i enllaços que tenen almenys una aresta
+            nodes = nodesAmbArestes;
+            edges = edgesAmbArestes;
+
+            // Crida la funció per crear i visualitzar el gràfic amb els nodes i enllaços actualitzats
+            crearGrafic();
+        }
+
+        // Funció per mostrar la denominació del carrec en passar el ratolí per sobre de l'aresta
+        function mostrarDenominacio(d) {
+            // Obtenim la posició del cursor
+            const cursorX = d3.event.pageX;
+            const cursorY = d3.event.pageY;
+
+            // Mostrem la denominació del carrec com a etiqueta
+            svg.append("text")
+                .attr("class", "etiqueta-carrec")
+                .attr("x", cursorX + 10)  // Ajusta la posició tocant el costat dret del cursor
+                .attr("y", cursorY - 10)  // Ajusta la posició per sobre del cursor
+                .attr("text-anchor", "start")  // Alinea el text a l'inici
+                .text(d.carrec + " " + d.representant);
+        }
+
+        // Funció per amagar la denominació del carrec quan el ratolí surt de l'aresta
+        function amagarDenominacio() {
+            // Eliminem l'etiqueta de la denominació del carrec
+            svg.select(".etiqueta-carrec").remove();
+        }
+
+        // Crida la funció per obtenir les dades i iniciar la creació del gràfic
+        obtenirDadesIGraficar();
+    </script>
+</body>
+</html>

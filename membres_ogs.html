@@ -143,7 +143,8 @@ const resultat2 = dades1.map(({ denominaci, n_mero_de_registre, denominaci_membr
     departament_membre: departament || "",
     percentatge_drets_de_vot: percentatge_drets_de_vot || "",
     nombre_de_membres,
-    vot_de_qualitat: vot_de_qualitat || "No"
+    vot_de_qualitat: vot_de_qualitat || "No",
+    part_cip_o_organisme: part_cip_o_organisme || "-"
 }));
 
 // Filtrar i combinar les dades dels dos conjunts
@@ -161,9 +162,7 @@ var resultatUnificat = resultat2.map(item2 => {
 // Filtrar la variable resultatUnificat segons els criteris especificats
 resultatUnificat = resultatUnificat.filter(item => (
     item.departament_d_adscripci === "ECO - Departament d'Economia i Hisenda_d" ||
-    (item.departament_membre === "ECO" ||
-    item.denominaci_membre.includes("treball i economia"))
-    
+    (item.departament_membre === "ECO" || item.denominaci_membre.includes("treball i economia"))
 ));
 
 
@@ -181,8 +180,10 @@ console.log(resultatUnificat);
                     // Crea nodes amb noms únics
                     nodes[d.departament_d_adscripci] = { name: d.departament_d_adscripci, categoria: "departament", naturalesa: "", url: "https://analisi.transparenciacatalunya.cat/Sector-P-blic/Registre-del-sector-p-blic-de-la-Generalitat-de-Ca/gr39-ik6u/explore/query/SELECT%20%2a%0AWHERE%0A%20%20caseless_one_of%28%0A%20%20%20%20%60departament_d_adscripci%60%2C%0A%20%20%20%20%22"+d.departament_d_adscripci.slice(0, -2)+"%22%0A%20%20%29/page/filter" };
 
-                    nodes[d.denominaci_membre] = { name: d.denominaci_membre, categoria: "membre", naturalesa: "", percentatge_drets_de_vot: d.percentatge_drets_de_vot, departament_membre: d.departament_membre, url: "https://analisi.transparenciacatalunya.cat/Sector-P-blic/Registre-del-sector-p-blic-de-la-Generalitat-de-Ca/sexe-cpsh/explore/query/SELECT%20%2a%0AWHERE%0A%20%20caseless_one_of%28%0A%20%20%20%20%60denominaci_membre%60%2C%0A%20%20%20%20%22"+d.denominaci_membre.slice(0, -2).replace(/\//g, "%2F")+"%22%0A%20%20%29/page/filter" };
+ if (d.departament_membre === "ECO" || d.denominaci_membre.includes("treball i economia")) {
 
+                    nodes[d.denominaci_membre] = { name: d.denominaci_membre, categoria: "membre", naturalesa: "", percentatge_drets_de_vot: d.percentatge_drets_de_vot, departament_membre: d.departament_membre, url: "https://analisi.transparenciacatalunya.cat/Sector-P-blic/Registre-del-sector-p-blic-de-la-Generalitat-de-Ca/sexe-cpsh/explore/query/SELECT%20%2a%0AWHERE%0A%20%20caseless_one_of%28%0A%20%20%20%20%60denominaci_membre%60%2C%0A%20%20%20%20%22"+d.denominaci_membre.slice(0, -2).replace(/\//g, "%2F")+"%22%0A%20%20%29/page/filter" };
+}
                     nodes[d.denominaci] = { name: d.denominaci, registre: d.n_mero_de_registre, categoria: "denominacio", naturalesa: d.naturalesa_jur_dica, percent: d.total_participaci_generalitat, qualificador: d.qualificador_de_la_participaci, url: "https://analisi.transparenciacatalunya.cat/Sector-P-blic/Registre-del-sector-p-blic-de-la-Generalitat-de-Ca/sexe-cpsh/explore/query/SELECT%20%2a%0AWHERE%20caseless_one_of%28%60denominaci%60%2C%20%22"+d.denominaci.slice(0, -2)+"%22%29/page/filter", total_drets_vot_gc: d.total_drets_de_vot_generalitat };
                 });
 
@@ -194,9 +195,9 @@ const enllaços = [];
 
 resultatUnificat.forEach(d => {
     enllaços.push({ source: d.departament_d_adscripci, target: d.denominaci, percentatge: 10, classe: "dep" });
-    if (d.departament_membre === "ECO" || d.denominaci_membre.includes("treball i economia")) {
         
-        enllaços.push({ source: d.denominaci, target: d.denominaci_membre, percentatge: d.percentatge_drets_de_vot, nombre_de_membres: d.nombre_de_membres, vot_de_qualitat: d.vot_de_qualitat, classe: "part" });
+    if (d.departament_membre === "ECO" || d.denominaci_membre.includes("treball i economia")) {
+        enllaços.push({ source: d.denominaci, target: d.denominaci_membre, percentatge: d.percentatge_drets_de_vot, nombre_de_membres: d.nombre_de_membres, vot_de_qualitat: d.vot_de_qualitat, part_cip_o_organisme: d.part_cip_o_organisme, classe: "part" });
     }
 });
 
@@ -239,13 +240,13 @@ nodesArray.forEach(node => {
                 svg.call(zoom);
 
 // Especifica els límits de l'àrea visible
-const limitAmple = 8000; // Canvia a l'ample desitjat
-const limitAlcada = 6000; // Canvia a l'alcada desitjada
+const limitAmple = 800; // Canvia a l'ample desitjat
+const limitAlcada = 600; // Canvia a l'alcada desitjada
 
 // Crear una simulació de forces amb límits
 const simulacio = d3.forceSimulation(nodesArray)
     .force("link", d3.forceLink(enllaços).id(d => d.name))
-    .force("charge", d3.forceManyBody().strength(-200))
+    .force("charge", d3.forceManyBody().strength(-500))
     .force("x", d3.forceX().x(d => Math.max(0, Math.min(limitAmple, d.x))))
     .force("y", d3.forceY().y(d => Math.max(0, Math.min(limitAlcada, d.y))));
 
@@ -255,13 +256,13 @@ function aturarSimulacio() {
     simulacio.alpha(0).stop();
 }
 
-// Programa l'aturada de la simulació després de 20 segons (20000 milisegons)
-setTimeout(aturarSimulacio, 5000);
+// Programa l'aturada de la simulació després de x segons (x000 milisegons)
+setTimeout(aturarSimulacio, 8000);
 
                 // Definir una escala per al gruix dels enllaços basada en el camp "percentatge"
                 const escalaGruix = d3.scaleLinear()
                     .domain([0, d3.max(enllaços, d => d.percentatge)]) // Utilitzar el valor màxim de "percentatge" com a domini
-                    .range([1, 1.5]); // Establir el rang de gruix desitjat (ajustar segons les teves preferències)
+                    .range([1, 2]); // Establir el rang de gruix desitjat (ajustar segons les teves preferències)
 
 // Afegir enllaços al gràfic
 const enllac = contenidorGrafic.append("g")
@@ -351,7 +352,6 @@ const node = contenidorGrafic.append("g")
         .on("end", fiArrossegament)); // Quan s'acaba l'arrossegament
 
 
-
               const text = contenidorGrafic.append("g")
     .attr("class", "labels")
     .selectAll("text")
@@ -362,9 +362,6 @@ const node = contenidorGrafic.append("g")
     .attr("dy", ".35em")
     .text(d => d.name.slice(0, -2))
     .style("display", "none");
-
-
-
 
                 // Definir el comportament de la simulació quan es produeixin canvis
                 simulacio.on("tick", () => {
@@ -395,8 +392,8 @@ const node = contenidorGrafic.append("g")
                 function zoomat(event) {
                     // Ajustar l'escala del text en funció del nivell de zoom
                     const escalaActual = event.transform.k;
-                    text.style("font-size", `${14 / escalaActual}px`);
-
+                    // Per fer variar la mida del text amb el zoom: text.style("font-size", `${14 / escalaActual}px`);
+		    text.style("font-size", `10px`);
                     // Aplicar el zoom a la resta del gràfic
                     contenidorGrafic.attr("transform", event.transform);
                 }
@@ -420,7 +417,7 @@ const node = contenidorGrafic.append("g")
                 }
 
 // Defineix la vista inicial centrada amb un zoom més petit
-const vistaInicial = d3.zoomIdentity.translate(ample/2.5, alcada/2.5).scale(0.7);
+const vistaInicial = d3.zoomIdentity.translate(ample/2.5, alcada/2.5).scale(0.32);
 
 // Aplica la vista inicial a l'element SVG
 svg.call(zoom.transform, vistaInicial);
@@ -490,19 +487,20 @@ function filtrarNodes() {
 }
 
 
+
 // Funció per mostrar la finestra emergent
 function mostrarInformacioEmergent(event, d) {
     const tooltip = document.getElementById("tooltipEmergent");
 
     // Comprovar si la categoria és "denominacio"
     if (d.categoria === "denominacio") {
-        tooltip.innerHTML = `<b>${d.registre}</b> ${d.name.slice(0, -2)}<br>Participació GC: ${d.percent} %<br>Drets de vot GC: ${d.total_drets_vot_gc}`;
+        tooltip.innerHTML = `<b>${d.registre}</b> ${d.name.slice(0, -2)}<br>Participació GC: ${d.percent} %<br>Drets de vot GC: ${d.total_drets_vot_gc} %`;
     } else if (d.categoria === "membre") {
         // Mostrar informació de l'aresta només si existeix un percentatge
         tooltip.innerHTML = `${d.name.slice(0, -2)}`;
     } else if (d.classe === "part") {
         // Mostrar informació de l'aresta de participació
-        tooltip.innerHTML = `Percentatge de vot: ${d.percentatge} %<br>Nombre membres: ${d.nombre_de_membres}<br>Vot de qualitat: ${d.vot_de_qualitat}`;
+        tooltip.innerHTML = `Percentatge de vot: ${d.percentatge} %<br>Nombre membres: ${d.nombre_de_membres}<br>Vot de qualitat: ${d.vot_de_qualitat}<br>(${d.part_cip_o_organisme})`;
     } else if (d.categoria === "departament") {
         // Mostrar informació dels nodes de departament
         tooltip.innerHTML = `${d.name.slice(0, -2)}`;

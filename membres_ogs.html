@@ -361,7 +361,7 @@ const node = contenidorGrafic.append("g")
     .attr("dx", 10)  // Augmenta aquest valor per allunyar el text dels nodes
     .attr("dy", ".35em")
     .text(d => d.name.slice(0, -2))
-    .style("display", "none");
+    .style("display", "block");
 
                 // Definir el comportament de la simulació quan es produeixin canvis
                 simulacio.on("tick", () => {
@@ -399,22 +399,22 @@ const node = contenidorGrafic.append("g")
                 }
 
                 // Funcions per gestionar l'arrossegament dels nodes (opcional)
-                function iniciArrossegament(event, d) {
-                    if (!event.active) simulacio.alphaTarget(0.3).restart();
-                    d.fx = d.x;
-                    d.fy = d.y;
-                }
+function iniciArrossegament(event, d) {
+    if (!event.active) simulacio.alphaTarget(0.1).restart();
+    d.fx = d.x;
+    d.fy = d.y;
+}
 
-                function arrossegant(event, d) {
-                    d.fx = event.x;
-                    d.fy = event.y;
-                }
+function arrossegant(event, d) {
+    d.fx = event.x;
+    d.fy = event.y;
+}
 
-                function fiArrossegament(event, d) {
-                    if (!event.active) simulacio.alphaTarget(0);
-                    d.fx = null;
-                    d.fy = null;
-                }
+function fiArrossegament(event, d) {
+    if (!event.active) simulacio.alphaTarget(0);
+    d.fx = d.x; // Ajusta això per fixar la posició del node després de l'arrossegament
+    d.fy = d.y;
+}
 
 // Defineix la vista inicial centrada amb un zoom més petit
 const vistaInicial = d3.zoomIdentity.translate(ample/2.5, alcada/2.5).scale(0.32);
@@ -514,7 +514,6 @@ function mostrarInformacioEmergent(event, d) {
     tooltip.style.left = (event.pageX + 10) + "px";
     tooltip.style.top = (event.pageY - 15) + "px";
 }
-
 
 // Funció per amagar la finestra emergent
 function amagarInformacioEmergent() {

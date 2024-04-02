@@ -58,7 +58,7 @@
         }
 
         .llegenda-circle {
-            width: 20px; /* Amplada i alcada del cercle */
+            width: 20px; /* Amplada i alçada del cercle */
             height: 20px;
             border-radius: 50%; /* Fa que el div sigui rodó */
             margin-right: 5px; /* Marge entre els cercles i el text */
@@ -125,7 +125,7 @@
             const dades1 = await resposta1.json();
             const dades2 = await resposta2.json();
 
-// Filtrar i combinar les dades de les dues conjunts
+// Filtrar i combinar les dades dels dos conjunts
 const resultat1 = dades2.map(({ denominaci, departament_d_adscripci, total_participaci_generalitat, naturalesa_jur_dica, qualificador_de_la_participaci, total_drets_de_vot_generalitat }) => ({
     denominaci,
     departament_d_adscripci: departament_d_adscripci + "_d" || "_d",
@@ -135,7 +135,7 @@ const resultat1 = dades2.map(({ denominaci, departament_d_adscripci, total_parti
     total_drets_de_vot_generalitat
 }));
 
-// Filtrar i combinar les dades de les dues conjunts
+// Filtrar i combinar les dades dels dos conjunts
 const resultat2 = dades1.map(({ denominaci, n_mero_de_registre, denominaci_membre, membre_part_cip, part_cip_o_organisme, departament, dret_de_vot, categoritzaci_part_cip, nombre_de_membres, percentatge_drets_de_vot, vot_de_qualitat, data_alta_membre }) => ({
     denominaci,
     denominaci_membre: denominaci_membre + "_m" || "_m",
@@ -164,7 +164,6 @@ resultatUnificat = resultatUnificat.filter(item => (
     item.departament_d_adscripci === "ECO - Departament d'Economia i Hisenda_d" ||
     (item.departament_membre === "ECO" || item.denominaci_membre.includes("treball i economia"))
 ));
-
 
 console.log(resultatUnificat);
 
@@ -250,7 +249,6 @@ const simulacio = d3.forceSimulation(nodesArray)
     .force("x", d3.forceX().x(d => Math.max(0, Math.min(limitAmple, d.x))))
     .force("y", d3.forceY().y(d => Math.max(0, Math.min(limitAlcada, d.y))));
 
-
 // Defineix una funció per aturar la simulació
 function aturarSimulacio() {
     simulacio.alpha(0).stop();
@@ -282,7 +280,6 @@ const enllac = contenidorGrafic.append("g")
     .on("mouseout", function() {
         amagarInformacioEmergent();
     });
-
 
                 // Definir una escala de colors per a les categories
                 const color = d3.scaleOrdinal()
@@ -339,18 +336,14 @@ const node = contenidorGrafic.append("g")
     mostrarInformacioEmergent(event, d);
 })
 
-
-
 .on("mouseout", function () {
     amagarInformacioEmergent();
 })
-
 
     .call(d3.drag() // Afegir arrossegament amb D3
         .on("start", iniciArrossegament) // Quan s'inicia l'arrossegament
         .on("drag", arrossegant) // Mentre s'arrossega
         .on("end", fiArrossegament)); // Quan s'acaba l'arrossegament
-
 
               const text = contenidorGrafic.append("g")
     .attr("class", "labels")
@@ -358,7 +351,7 @@ const node = contenidorGrafic.append("g")
     .data(nodesArray)
     .enter().append("text")
     .attr("class", "node text")
-    .attr("dx", 10)  // Augmenta aquest valor per allunyar el text dels nodes
+    .attr("dx", 10)  // Augmentar aquest valor per allunyar el text dels nodes
     .attr("dy", ".35em")
     .text(d => d.name.slice(0, -2))
     .style("display", "block");
@@ -385,7 +378,7 @@ const node = contenidorGrafic.append("g")
     .force("collide", d3.forceCollide().radius(function (d) {
         return d.r + 5; // Afegir una mica d'espai entre els nodes durant l'arrossegament
     }))
-    .alphaTarget(0.1) // Redueix l'alfa per fer que els nodes es moguin més suament
+    .alphaTarget(0.1) // Reduir l'alfa per fer que els nodes es moguin més suament
     .alphaDecay(0.02); // Redueix gradualment l'alfa per aturar la simulació més ràpidament
 
                 // Funció per gestionar el zoom
@@ -428,7 +421,7 @@ svg.call(zoom.transform, vistaInicial);
             }
         }
 
-        // Trucar a la funció per carregar les dades
+        // Crida la funció per carregar les dades
         carregarDades();
 
 // Afegir un event listener al botó per alternar el text
@@ -445,7 +438,7 @@ document.getElementById('toggleButton').addEventListener('click', function() {
 // Afegir un event listener a l'element d'entrada de text per a la filtració dinàmica
 const filterInput = document.getElementById('filterInput');
 filterInput.addEventListener('input', function() {
-    filtrarNodes(); // Trucar a la funció de filtrat quan canviï el text d'entrada
+    filtrarNodes(); // Crida la funció de filtrat quan canviï el text d'entrada
 });
 
 // Funció per filtrar nodes
@@ -459,7 +452,7 @@ function filtrarNodes() {
         d3.selectAll('.link').classed('filtered-link', false);
         // Mostra tots els textos dels nodes
         d3.selectAll('.node.text').style('display', 'none');
-        return; // Sort de la funció quan la caixa estigui buida
+        return; // Surt de la funció quan la caixa estigui buida
     }
 
     // Seleciona tots els enllaços i restaura els colors
@@ -485,8 +478,6 @@ function filtrarNodes() {
         return nodesConnectats.includes(d) ? 'block' : 'none';
     });
 }
-
-
 
 // Funció per mostrar la finestra emergent
 function mostrarInformacioEmergent(event, d) {
@@ -532,13 +523,13 @@ function actualitzarDimensions() {
         .attr("height", finestraAltura);
 }
 
-// Crida a la funció per primera vegada
+// Crida la funció per primera vegada
 actualitzarDimensions();
 
 // Afegeix un event listener per actualitzar les dimensions quan es redimensiona la finestra
 window.addEventListener("resize", actualitzarDimensions);
 
-// Change the initial style to "block" for the legend
+// Canvia l'estil inicial a "block" a la llegenda
 const llegenda = document.getElementById("llegenda");
 llegenda.style.display = "block";
 

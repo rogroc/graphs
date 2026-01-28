@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gràfic D3 - Sector Públic</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+
+    <style>
+        body { margin: 0; overflow: hidden; font-family: sans-serif; }
+        
+/* Color per defecte de totes les arestes */
+.link {
+    fill: none;
+    stroke: #bbb;    /* Un gris una mica més definit */
+    stroke-opacity: 0.5; /* Pugem una mica l'opacitat base */
+}
+
+/* Quan el filtre troba una aresta AMB percentatge */
+.filtered-link-vermell {
+    stroke: red !important;
+    stroke-opacity: 1 !important;
+    stroke-width: 3px !important;
+}
+
+/* Quan el filtre troba una aresta SENSE percentatge (o zero) */
+.filtered-link-blau {
+    stroke: #00bfff !important; /* Blau clar elèctric */
+    stroke-opacity: 1 !important;
+    stroke-width: 3px !important;
+}
+
+        .node.text {
+            pointer-events: none;
+            font-size: 10px;
+        }
+
+        .filtered-link {
+            stroke: red !important;
+            stroke-opacity: 1 !important;
+            stroke-width: 4px !important;
+        }
+
+        .red-border-node {
+            stroke: red;
+            stroke-width: 3px;
+        }
+
+        .tooltip {
+            position: absolute;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 8px;
+            display: none;
+            pointer-events: none;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-size: 12px;
+            z-index: 10;
+        }
+
+        #llegenda {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .llegenda-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .llegenda-text { font-size: 13px; }
+
+        .llegenda-circle {
+            width: 15px; 
+            height: 15px;
+            border-radius: 50%; 
+            margin-right: 8px; 
+        }
+
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: flex;
+            gap: 10px;
+            z-index: 20;
+        }
+
+        button, input {
+            padding: 5px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: white;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="controls">
+        <button id="toggleButton">Alternar Text</button>
+        <input type="text" id="filterInput" placeholder="Filtra per nom...">
+    </div>
+
+    <svg id="grafic"></svg>
+    <div id="tooltipEmergent" class="tooltip"></div>
+
+    <div id="llegenda">
+        <div class="llegenda-item">
+            <div class="llegenda-circle" style="background-color: #ff5733;"></div>
+            <div class="llegenda-text">Departament</div>
+        </div>
+        <div class="llegenda-item">
+            <div class="llegenda-circle" style="background-color: #33ff57;"></div>
+            <div class="llegenda-text">Partícip</div>
+        </div>
+        <div class="llegenda-item">
+            <div class="llegenda-circle" style="background-color: #5733ff;"></div>
+            <div class="llegenda-text">Entitat</div>
+        </div>
+    </div>
+
+    <script>
+        const url1 = "https://analisi.transparenciacatalunya.cat/resource/ex6p-6zmp.json?$limit=300000";
+        const url2 = "https://analisi.transparenciacatalunya.cat/resource/gr39-ik6u.json?$limit=300000";
+
+        async function carregarDades() {
+            try {
+                const [r1, r2] = await Promise.all([fetch(url1), fetch(url2)]);
+                const dades1 = await r1.json();
+                const dades2 = await r2.json();
+
+                const resultat1 = dades2.map(d => ({
+                    denominaci: d.denominaci,
+                    departament_d_adscripci: d.departament_d_adscripci + "_d",
+                    total_participaci_generalitat: d.total_participaci_generalitat,
+                    naturalesa_jur_dica: d.naturalesa_jur_dica,
+                    qualificador_de_la_participaci: d.qualificador_de_la_participaci
+                }));
+
+                const resultat2 = dades1.filter(d => 
+                    ["ADMINISTRACIÓ DE LA GENERALITAT DE CATALUNYA", "ENTITAT DEL SECTOR PÚBLIC DE L'ADMINISTRACIÓ DE LA GENERALITAT"]
+                    .includes(d.categoritzaci_part_cip)
+                );
+
+                const resultatUnificat = resultat2.map(item2 => {
+                    const trobat = resultat1.find(item1 => item1.denominaci === item2.denominaci);
+                    return {
+                        ...item2,
+                        ...trobat,
+                        denominaci: item2.denominaci + "_e",
+                        denominaci_part_cip_agregat: item2.denominaci_part_cip_agregat + "_p"
+                    };
+                });
+
+                const nodes = {};
+                resultatUnificat.forEach(d => {
+                    nodes[d.departament_d_adscripci] = { name: d.departament_d_adscripci, categoria: "departament" };
+                    nodes[d.denominaci_part_cip_agregat] = { name: d.denominaci_part_cip_agregat, categoria: "particip" };
+                    nodes[d.denominaci] = { 
+                        name: d.denominaci, 
+                        categoria: "denominacio",
+                        percent: d.total_participaci_generalitat,
+                        qualificador: d.qualificador_de_la_participaci,
+                        registre: d.n_mero_de_registre
+                    };
+                });
+
+                const nodesArray = Object.values(nodes);
+                const enllaços = [];
+                const linksDeptGen = new Set();
+
+                resultatUnificat.forEach(d => {
+                    const esGeneralitat = d.denominaci_part_cip_agregat.toUpperCase().includes("ADMINISTRACIÓ DE LA GENERALITAT DE CATALUNYA");
+                    if (esGeneralitat) {
+                        enllaços.push({ source: d.denominaci, target: d.departament_d_adscripci, percentatge: d.percentatge_participaci, classe: "part" });
+                        const idLink = d.departament_d_adscripci + "-" + d.denominaci_part_cip_agregat;
+                        if (!linksDeptGen.has(idLink)) {
+                            enllaços.push({ source: d.departament_d_adscripci, target: d.denominaci_part_cip_agregat, percentatge: 50, classe: "dep" });
+                            linksDeptGen.add(idLink);
+                        }
+                    } else {
+                        enllaços.push({ source: d.departament_d_adscripci, target: d.denominaci, percentatge: 10, classe: "dep" });
+                        enllaços.push({ source: d.denominaci, target: d.denominaci_part_cip_agregat, percentatge: d.percentatge_participaci, classe: "part" });
+                    }
+                });
+
+                // Grau dels nodes
+                enllaços.forEach(e => {
+                    nodes[e.source].grau = (nodes[e.source].grau || 0) + 1;
+                    nodes[e.target].grau = (nodes[e.target].grau || 0) + 1;
+                });
+
+                const ample = window.innerWidth, alcada = window.innerHeight;
+                const svg = d3.select("#grafic").attr("width", ample).attr("height", alcada);
+                const contenidorGrafic = svg.append("g");
+
+                const zoom = d3.zoom().scaleExtent([0.05, 5]).on("zoom", (e) => {
+                    contenidorGrafic.attr("transform", e.transform);
+                    d3.selectAll('.node.text').style("font-size", `${10 / e.transform.k}px`);
+                });
+                svg.call(zoom);
+
+// Funció per centrar i ajustar el zoom automàticament
+function ajustarZoomSencer() {
+    const nodes = nodesArray;
+    if (nodes.length === 0) return;
+
+    // Calculem els límits (bounding box) del graf
+    const minX = d3.min(nodes, d => d.x);
+    const maxX = d3.max(nodes, d => d.x);
+    const minY = d3.min(nodes, d => d.y);
+    const maxY = d3.max(nodes, d => d.y);
+
+    const ampleGraf = maxX - minX;
+    const alcadaGraf = maxY - minY;
+    const centreX = (minX + maxX) / 2;
+    const centreY = (minY + maxY) / 2;
+
+    // Calculem l'escala necessària amb un marge del 10% (0.9)
+    const escala = 0.9 / Math.max(ampleGraf / ample, alcadaGraf / alcada);
+
+    svg.transition()
+        .duration(1000) // Transició suau
+        .call(zoom.transform, d3.zoomIdentity
+            .translate(ample / 2, alcada / 2)
+            .scale(escala)
+            .translate(-centreX, -centreY)
+        );
+}
+
+// Executem l'ajust automàtic un cop la simulació ha avançat una mica
+// 500ms o 1000ms és suficient perquè els nodes s'hagin expandit
+setTimeout(ajustarZoomSencer, 1500);
+
+                const escalaMida = d3.scaleLinear().domain([0, 100]).range([5, 12]);
+                const escalaGruix = d3.scaleLinear().domain([0, 100]).range([2, 8]);
+                const color = d3.scaleOrdinal().domain(["departament", "particip", "denominacio"]).range(["#ff5733", "#33ff57", "#5733ff"]);
+
+                // SIMULACIÓ OPTIMITZADA
+                const simulacio = d3.forceSimulation(nodesArray)
+                    .force("link", d3.forceLink(enllaços).id(d => d.name).distance(150).strength(0.7))
+                    .force("charge", d3.forceManyBody().strength(-500))
+                    .force("center", d3.forceCenter(ample / 2, alcada / 2))
+                    .force("collide", d3.forceCollide().radius(d => {
+                        // Col·lisió dinàmica: mateix radi que el visual + marge
+                        let r = (d.categoria === "denominacio") ? escalaMida(d.percent || 50) : (15 + (d.grau * 0.5));
+                        return r + 5; 
+                    }).strength(1).iterations(3));
+
+const link = contenidorGrafic.append("g").selectAll("line")
+    .data(enllaços).enter().append("line")
+    .attr("class", "link")
+    // Si la classe és "dep" (no té %), posem blau clar d'entrada
+    .classed("link-blau", d => d.classe === "dep") 
+    .style("stroke-width", d => escalaGruix(d.percentatge))
+    .on("mouseover", mostrarTooltip)
+    .on("mouseout", amagarTooltip);
+
+                const node = contenidorGrafic.append("g").selectAll("circle")
+                    .data(nodesArray).enter().append("circle")
+                    .attr("r", d => (d.categoria === "denominacio") ? escalaMida(d.percent || 50) : (15 + (d.grau * 0.5)))
+                    .style("fill", d => color(d.categoria))
+                    .classed("red-border-node", d => d.qualificador === "Entitat del sector públic de la Generalitat")
+                    .call(d3.drag()
+                        .on("start", (e, d) => { if (!e.active) simulacio.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+                        .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; })
+                        .on("end", (e, d) => { if (!e.active) simulacio.alphaTarget(0); d.fx = null; d.fy = null; }))
+                    .on("mouseover", mostrarTooltip)
+                    .on("mouseout", amagarTooltip);
+
+                const text = contenidorGrafic.append("g").selectAll("text")
+                    .data(nodesArray).enter().append("text")
+                    .attr("class", "node text").attr("dx", 15).attr("dy", ".35em")
+                    .text(d => d.name.slice(0, -2)).style("display", "none");
+
+                simulacio.on("tick", () => {
+                    link.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+                        .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+                    node.attr("cx", d => d.x).attr("cy", d => d.y);
+                    text.attr("x", d => d.x).attr("y", d => d.y);
+                });
+
+                function mostrarTooltip(event, d) {
+                    const tooltip = d3.select("#tooltipEmergent");
+                    let content = "";
+                    if (d.source) { // És un enllaç
+                        if (d.classe === "part") content = `Participació: ${d.percentatge}%`;
+                        else return;
+                    } else { // És un node
+                        content = `<b>${d.name.slice(0, -2)}</b>`;
+                        if (d.categoria === "denominacio") content += `<br>Part. GC: ${d.percent}%`;
+                    }
+                    tooltip.html(content).style("display", "block").style("left", (event.pageX + 15) + "px").style("top", (event.pageY - 15) + "px");
+                }
+
+                function amagarTooltip() { d3.select("#tooltipEmergent").style("display", "none"); }
+
+                // --- UI Controls Corregits ---
+document.getElementById('toggleButton').onclick = () => {
+    const t = d3.selectAll('.node.text');
+    const actual = t.style('display');
+    t.style('display', actual === 'none' ? 'block' : 'none');
+};
+
+document.getElementById('filterInput').oninput = (e) => {
+    const val = e.target.value.toLowerCase();
+    const links = d3.selectAll('.link');
+    const texts = d3.selectAll('.node.text');
+    
+    // 1. Reset: Tornem totes les arestes al gris inicial i amaguem textos
+    links.classed('filtered-link-vermell', false)
+         .classed('filtered-link-blau', false);
+    texts.style('display', 'none');
+
+    if (!val) return; // Si no hi ha text, es queda tot en gris
+
+    // 2. Busquem les arestes que coincideixen amb la cerca
+    const filteredLinks = links.filter(d => 
+        d.source.name.toLowerCase().includes(val) || 
+        d.target.name.toLowerCase().includes(val)
+    );
+
+    // 3. Apliquem el color segons el teu criteri
+    filteredLinks.each(function(d) {
+        const el = d3.select(this);
+        // CRITERI: Classe "part" i té percentatge real -> Vermell. Altres -> Blau.
+        if (d.classe === "part" && d.percentatge && d.percentatge > 0) {
+            el.classed('filtered-link-vermell', true);
+        } else {
+            el.classed('filtered-link-blau', true);
+        }
+    }).raise();
+
+    // 4. Mostrar els noms dels nodes implicats en la cerca
+    const nodesVisibles = new Set();
+    filteredLinks.each(d => {
+        nodesVisibles.add(d.source.name);
+        nodesVisibles.add(d.target.name);
+    });
+
+    texts.filter(d => nodesVisibles.has(d.name))
+         .style('display', 'block');
+};
+            } catch (error) { console.error(error); }
+        }
+
+        carregarDades();
+        window.onresize = () => {
+            d3.select("#grafic").attr("width", window.innerWidth).attr("height", window.innerHeight);
+        };
+    </script>
+</body>
+</html>
